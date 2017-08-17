@@ -6,3 +6,5 @@ My implementation of different machine learning algorithms and architectures for
 * [MNIST Convoluational Neural Network](mnist_conv.ipynb)
 * [Simple Gradient Descent](gradient_descent.ipynb)
 * [Simple Autoencoder](autoencoder_concept.ipynb)
+* [MNIST GAN (Generative Adversarial Network) (work in progress)](gan.ipynb)
+* [LSTM (Long Short Term Memory) Cell (work in progress)](lstm.ipynb)
