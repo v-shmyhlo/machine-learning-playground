@@ -9,3 +9,4 @@ My implementation of different machine learning algorithms and architectures for
 * [MNIST GAN (Generative Adversarial Network) (work in progress)](gan.ipynb)
 * [LSTM (Long Short Term Memory) Cell (work in progress)](lstm.ipynb)
 * [Word Embedding with Word2Vec](word_embedding.ipynb)
+* [Cheatsheet](cheatsheet.ipynb)
