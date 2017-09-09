@@ -10,4 +10,5 @@ My implementation of different machine learning algorithms and architectures for
 * [LSTM (Long Short Term Memory) Cell (work in progress)](lstm.ipynb)
 * [Word Embedding with Word2Vec](word_embedding.ipynb)
 * [Automatic Symbolic Differentiation](automatic_symbolic_differentiation.ipynb)
+* [Neural Network Framework (work in progress)](neural_network_framework.ipynb)
 * [Cheatsheet](cheatsheet.ipynb)
