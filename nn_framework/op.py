@@ -73,6 +73,7 @@ class Variable(Op):
   def deriv(self, var, dself):
     if var == self:
 #       return Const(np.ones(self.value.shape))
+      print('self: %s, dself: %s' % (self.eval({}, {}).shape, dself.eval({}, {}).shape))
       return dself
     else:
 #       return Const(np.zeros(self.value.shape))
@@ -118,6 +119,7 @@ class Assign(Op):
 
   def eval(self, feeds, cache):
     if not self in cache:
+      # print(self.var.shape.eval(feeds, cache), self.exp.eval(feeds, cache).shape)
       self.var.value = self.exp.eval(feeds, cache)
       cache[self] = self.var.value
 
@@ -131,7 +133,6 @@ class Add(BinaryOp):
     return cache[self]
 
   def deriv(self, var, dself):
-
     da = self.a.deriv(var, dself)
     db = self.b.deriv(var, dself)
 
@@ -149,11 +150,12 @@ class Sub(BinaryOp):
     return cache[self]
 
   def deriv(self, var, dself):
-
     da = self.a.deriv(var, dself)
     db = self.b.deriv(var, dself)
 
-    if da is None:
+    if da is None and db is None:
+      return None
+    elif da is None:
       return -db
     elif db is None:
       return da
