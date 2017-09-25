@@ -1,4 +1,5 @@
 import numpy as np
+from nn_framework.shape import StaticShape, DynamicShape, ElementwiseShapeBroadcast
 
 class Op(object):
   def __add__(self, b):
@@ -22,89 +23,106 @@ class Op(object):
   def __gt__(self, b):
     return Gt(self, b)
 
-  def __getitem__(self, *keys):
-    return GetItem(self, *keys)
+  def dot(self, b):
+    return Dot(self, b)
 
   def t(self):
     return Transpose(self)
 
-  def dot(self, b):
-    return Dot(self, b)
-
 class UnaryOp(Op):
+  def variables(self):
+    return self.x.variables()
+
+class Neg(UnaryOp):
   def __init__(self, x):
     self.x = x
-    self.variables = x.variables
+    self.shape = self.x.shape
+
+  def eval(self, feeds, cache):
+    if not self in cache:
+      cache[self] = -self.x.eval(feeds, cache)
+
+    return cache[self]
+
+  def deriv(self, var, dself):
+    return self.x.deriv(var, -dself)
+
+class Transpose(UnaryOp):
+  def __init__(self, x):
+    self.x = x
+    self.shape = BroadcastTranspose(x.shape)
+
+  def eval(self, feeds, cache):
+    if not self in cache:
+      cache[self] = self.x.eval(feeds, cache).T
+
+    return cache[self]
 
 class BinaryOp(Op):
+  def variables(self):
+    return self.a.variables().union(self.b.variables())
+
+class BinaryElementwiseOp(BinaryOp):
   def __init__(self, a, b):
-    self.a = a
-    self.b = b
-    self.variables = a.variables.union(b.variables)
-    self.shape = BroadcastElementwise(a.shape, b.shape)
+    self.a, self.b, self.shape = broadcast_elementwise(a, b)
 
 class Const(Op):
   def __init__(self, value):
     self.value = np.array(value)
-    self.variables = set()
-    self.shape = Shape(self.value.shape)
+    self.shape = StaticShape(self.value.shape)
 
   def eval(self, feeds, cache):
     return self.value
 
   def deriv(self, var, dself):
     if var == self:
-#       return Const(np.ones(self.value.shape))
       return dself
     else:
-#       return Const(np.zeros(self.value.shape))
-#       return Const(0)
       return None
+
+  def variables(self):
+    return set()
 
 class Variable(Op):
   def __init__(self, value):
     self.value = np.array(value)
-    self.variables = set([self])
-    self.shape = Shape(self.value.shape)
+    self.shape = StaticShape(self.value.shape)
 
   def eval(self, feeds, cache):
     return self.value
 
   def deriv(self, var, dself):
     if var == self:
-#       return Const(np.ones(self.value.shape))
-      print('self: %s, dself: %s' % (self.eval({}, {}).shape, dself.eval({}, {}).shape))
       return dself
     else:
-#       return Const(np.zeros(self.value.shape))
-#       return Const(0)
       return None
 
   def assign(self, exp):
     return Assign(self, exp)
 
+  def variables(self):
+    return set([self])
+
 class Placeholder(Op):
   def __init__(self, name):
     self.name = name
-    self.variables = set()
-    self.shape = FeedShape(self)
+    self.shape = DynamicShape(self)
 
   def eval(self, feeds, cache):
     return np.array(feeds[self])
 
   def deriv(self, var, dself):
     if var == self:
-#       return Const(np.ones(self.value.shape))
       return dself
     else:
-#       return Const(np.zeros(self.value.shape))
-#       return Const(0)
       return None
+
+  def variables(self):
+    return set()
 
 class Ones(Op):
   def __init__(self, shape):
     self.shape = shape
-    self.variables = shape.variables
 
   def eval(self, feeds, cache):
     if not self in cache:
@@ -119,13 +137,14 @@ class Assign(Op):
 
   def eval(self, feeds, cache):
     if not self in cache:
-      # print(self.var.shape.eval(feeds, cache), self.exp.eval(feeds, cache).shape)
-      self.var.value = self.exp.eval(feeds, cache)
+      value = self.exp.eval(feeds, cache)
+      assert value.shape == self.var.value.shape
+      self.var.value = value
       cache[self] = self.var.value
 
     return cache[self]
 
-class Add(BinaryOp):
+class Add(BinaryElementwiseOp):
   def eval(self, feeds, cache):
     if not self in cache:
       cache[self] = self.a.eval(feeds, cache) + self.b.eval(feeds, cache)
@@ -143,7 +162,7 @@ class Add(BinaryOp):
     else:
       return da + db
 
-class Sub(BinaryOp):
+class Sub(BinaryElementwiseOp):
   def eval(self, feeds, cache):
     if not self in cache:
       cache[self] = self.a.eval(feeds, cache) - self.b.eval(feeds, cache)
@@ -162,7 +181,7 @@ class Sub(BinaryOp):
     else:
       return da - db
 
-class Mul(BinaryOp):
+class Mul(BinaryElementwiseOp):
   def eval(self, feeds, cache):
     if not self in cache:
       cache[self] = self.a.eval(feeds, cache) * self.b.eval(feeds, cache)
@@ -170,9 +189,8 @@ class Mul(BinaryOp):
     return cache[self]
 
   def deriv(self, var, dself):
-
-    da = self.a.deriv(var, dself * self.b)
-    db = self.b.deriv(var, dself * self.a)
+    da = self.a.deriv(var, self.b * dself)
+    db = self.b.deriv(var, self.a * dself)
 
     if da is None:
       return db
@@ -181,7 +199,7 @@ class Mul(BinaryOp):
     else:
       return da + db
 
-class Div(BinaryOp):
+class Div(BinaryElementwiseOp):
   def eval(self, feeds, cache):
     if not self in cache:
       cache[self] = self.a.eval(feeds, cache) / self.b.eval(feeds, cache)
@@ -191,53 +209,27 @@ class Div(BinaryOp):
   def deriv(self, var):
     return (self.b * self.a.deriv(var) - self.a * self.b.deriv(var)) / (self.b ** Const(2))
 
-class Pow(BinaryOp):
+class Pow(BinaryElementwiseOp):
   def eval(self, feeds, cache):
     if not self in cache:
       cache[self] = self.a.eval(feeds, cache) ** self.b.eval(feeds, cache)
 
     return cache[self]
 
-  def deriv(self, var):
-    return ((self.b * self.a) ** (self.b - Const(1))) * self.a.deriv(var)
-
-class Neg(UnaryOp):
-  def __init__(self, x):
-    super().__init__(x)
-    self.shape = self.x.shape
-
-  def eval(self, feeds, cache):
-    if not self in cache:
-      cache[self] = -self.x.eval(feeds, cache)
-
-    return cache[self]
-
   def deriv(self, var, dself):
-    return self.x.deriv(var, -dself)
+    return self.a.deriv(var, (self.b * self.a) ** (self.b - Const(1)) * dself)
 
-class Gt(BinaryOp):
+class Gt(BinaryElementwiseOp):
   def eval(self, feeds, cache):
     if not self in cache:
       cache[self] = self.a.eval(feeds, cache) > self.b.eval(feeds, cache)
 
     return cache[self]
 
-class Transpose(UnaryOp):
-  def __init__(self, x):
-    super().__init__(x)
-    self.shape = BroadcastTranspose(x.shape)
-
-  def eval(self, feeds, cache):
-    if not self in cache:
-      cache[self] = self.x.eval(feeds, cache).T
-
-    return cache[self]
-
-class Dot(BinaryOp):
+class Dot(BinaryElementwiseOp):
   def __init__(self, a, b):
     self.a = a
     self.b = b
-    self.variables = a.variables.union(b.variables)
     self.shape = BroadcastMatmul(a.shape, b.shape)
 
   def eval(self, feeds, cache):
@@ -247,7 +239,6 @@ class Dot(BinaryOp):
     return cache[self]
 
   def deriv(self, var, dself):
-
     dself_da = dself.dot(self.b.t())
     dself_db = dself.t().dot(self.a)
     da = self.a.deriv(var, dself_da)
@@ -260,48 +251,10 @@ class Dot(BinaryOp):
     else:
       return da + db
 
-class BroadcastElementwise(Op):
+class BroadcastMatmul(BinaryOp):
   def __init__(self, a, b):
     self.a = a
     self.b = b
-    self.variables = a.variables.union(b.variables)
-
-  def eval(self, feeds, cache):
-    if not self in cache:
-      a = self.a.eval(feeds, cache)
-      b = self.b.eval(feeds, cache)
-
-      if a == b:
-        cache[self] = a
-
-      if len(a) == 2 and len(b) == 2:
-        if a[0] == b[0]:
-          if a[1] == 1:
-            cache[self] = (a[0], b[1])
-          if b[1] == 1:
-            cache[self] = (a[0], a[1])
-        if a[1] == b[1]:
-          if a[0] == 1:
-            cache[self] = (b[0], a[1])
-          if b[0] == 1:
-            cache[self] = (a[0], a[1])
-
-      if len(a) == 2 and len(b) == 0:
-        cache[self] = a
-
-      if len(a) == 0 and len(b) == 2:
-        cache[self] = b
-
-      if not self in cache:
-        raise Exception("Can not broadcast %s and %s" % (a, b))
-
-    return cache[self]
-
-class BroadcastMatmul(object):
-  def __init__(self, a, b):
-    self.a = a
-    self.b = b
-    self.variables = a.variables.union(b.variables)
 
   def eval(self, feeds, cache):
     if not self in cache:
@@ -315,65 +268,64 @@ class BroadcastMatmul(object):
 
     return cache[self]
 
-class ReLU(Op):
-  def __init__(self, Z):
-    self.Z = Z
-    self.variables = Z.variables
-    self.shape = Z.shape
+class ReLU(UnaryOp):
+  def __init__(self, x):
+    self.x = x
+    self.shape = x.shape
 
   def eval(self, feeds, cache):
     if not self in cache:
-      Z = self.Z.eval(feeds, cache)
-      return np.maximum(0, Z)
+      x = self.x.eval(feeds, cache)
+      return np.maximum(0, x)
 
     return cache[self]
 
   def deriv(self, var, dself):
-    dself_dZ = self.Z > Const(0)
-    return self.Z.deriv(var, dself_dZ * dself)
+    dself_dx = self.x > Const(0)
+    return self.x.deriv(var, dself_dx * dself)
 
-class Sigmoid(Op):
-  def __init__(self, Z):
-    self.Z = Z
-    self.variables = Z.variables
-    self.shape = Z.shape
+class Sigmoid(UnaryOp):
+  def __init__(self, x):
+    self.x = x
+    self.shape = x.shape
 
   def eval(self, feeds, cache):
     if not self in cache:
-      cache[self] = 1 / (1 + np.exp(-self.Z.eval(feeds, cache)))
+      cache[self] = 1 / (1 + np.exp(-self.x.eval(feeds, cache)))
 
     return cache[self]
 
   def deriv(self, var, dself):
-    dself_dZ = self * (Const(1) - self)
-    return self.Z.deriv(var, dself_dZ * dself)
+    dself_dx = self * (Const(1) - self)
+    return self.x.deriv(var, dself_dx * dself)
 
 class LogisticLoss(Op):
-  def __init__(self, _sentinel=None, A=None, Y=None):
-    self.A = A
-    self.Y = Y
-    self.variables = A.variables.union(Y.variables)
-    self.shape = Shape(())
+  def __init__(self, _sentinel=None, a=None, y=None):
+    self.a = a
+    self.y = y
+    self.shape = StaticShape(())
+
+  def variables(self):
+    return self.a.variables().union(self.y.variables())
 
   def eval(self, feeds, cache):
     if not self in cache:
-      A = self.A.eval(feeds, cache)
-      Y = self.Y.eval(feeds, cache)
-      cache[self] = -np.mean(Y * np.log(A) + (1 - Y) * np.log(1 - A))
-      # TODO: use mean as deriv
+      a = self.a.eval(feeds, cache)
+      y = self.y.eval(feeds, cache)
+      cache[self] = -np.mean(y * np.log(a) + (1 - y) * np.log(1 - a))
 
     return cache[self]
 
   def deriv(self, var, dself):
-    # TODO: this is not full implementation, it ignores derivatives with respect to Y
-    dself_da = -(self.Y / self.A) + (Const(1) - self.Y) / (Const(1) - self.A)
-    dself_da = dself_da / self.A.shape[1]
-    return self.A.deriv(var, dself_da * dself)
+    # TODO: this is not full implementation, it ignores derivatives w.r.t. y
+    dself_da = -(self.y / self.a) + (Const(1) - self.y) / (Const(1) - self.a)
+    dself_da = dself_da / self.a.shape[1]
+    return self.a.deriv(var, dself_da * dself)
 
 class GradientDescentOptimizer(Op):
   def __init__(self, learning_rate, exp):
     self.learning_rate = learning_rate
-    self.gradients = [(v, exp.deriv(v, Ones(exp.shape))) for v in exp.variables]
+    self.gradients = [(v, exp.deriv(v, Ones(exp.shape))) for v in exp.variables()]
 
   def eval(self, feeds, cache):
     if not self in cache:
@@ -381,32 +333,9 @@ class GradientDescentOptimizer(Op):
 
     return cache[self]
 
-class Shape(object):
-  def __init__(self, value):
-    self.value = value
-    self.variables = set()
-
-  def eval(self, feeds, cache):
-    if not self in cache:
-      cache[self] = self.value
-
-    return cache[self]
-
-class FeedShape(object):
-  def __init__(self, key):
-    self.key = key
-    self.variables = set()
-
-  def eval(self, feeds, cache):
-    if not self in cache:
-      cache[self] = feeds[self.key].shape
-
-    return cache[self]
-
 class BroadcastTranspose(object):
   def __init__(self, value):
     self.value = value
-    self.variables = value.variables
 
   def eval(self, feeds, cache):
     if not self in cache:
@@ -415,15 +344,39 @@ class BroadcastTranspose(object):
 
     return cache[self]
 
-class GetItem(object):
-  def __init__(self, value, *keys):
-    self.value = value
-    self.keys = keys
-    self.variables = value.variables
-    self.shape = Shape(())
+class Broadcast(UnaryOp):
+  def __init__(self, x, shape):
+    self.x = x
+    self.shape = shape
+
+  def eval(self, feeds, cache):
+    # TODO: i am ignoring broadcasting relying on numpy
+    return self.x.eval(feeds, cache)
+
+  def deriv(self, var, dself):
+    return self.x.deriv(var, SumToShape(dself, self.x.shape))
+
+class SumToShape(Op):
+  def __init__(self, tensor, shape):
+    self.tensor = tensor
+    self.shape = shape
 
   def eval(self, feeds, cache):
     if not self in cache:
-      cache[self] = self.value.eval(feeds, cache).__getitem__(*self.keys)
+      tensor = self.tensor.eval(feeds, cache)
+      shape = self.shape.eval(feeds, cache)
+
+      if tensor.shape != shape:
+        axis = np.argmax(np.array(tensor.shape) != np.array(shape))
+        cache[self] = np.sum(tensor, axis=axis, keepdims=True)
+      else:
+        cache[self] = tensor
 
     return cache[self]
+
+def broadcast_elementwise(a, b):
+  shape = ElementwiseShapeBroadcast(a.shape, b.shape)
+  a_new = Broadcast(a, shape)
+  b_new = Broadcast(b, shape)
+
+  return a_new, b_new, shape
