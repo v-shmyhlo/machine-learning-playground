@@ -7,6 +7,7 @@ limit = 1e-7
 # ord = np.inf
 ord = None
 
+
 def gradient_check(exp, feeds):
   variables = exp.variables()
   grads = [exp.deriv(var, Ones(exp.shape)) for var in variables]
@@ -42,8 +43,11 @@ def gradient_check(exp, feeds):
   grads_computed = np.hstack([grad.ravel() for grad in grads_computed])
   grads_approx = np.hstack([grad.ravel() for grad in grads_approx])
 
-  assert grads_computed.shape == (n_elements,) and grads_approx.shape == (n_elements,)
+  assert grads_computed.shape == (n_elements, ) and grads_approx.shape == (
+      n_elements, )
 
-  check = np.linalg.norm(grads_approx - grads_computed, ord=ord) / (np.linalg.norm(grads_approx, ord=ord) + np.linalg.norm(grads_computed, ord=ord))
-  print(check)
+  check = np.linalg.norm(
+      grads_approx - grads_computed, ord=ord) / (np.linalg.norm(
+          grads_approx, ord=ord) + np.linalg.norm(grads_computed, ord=ord))
   assert check > 0 and check < 1e-7, "%s should be < %s" % (check, limit)
+  return check

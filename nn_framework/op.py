@@ -1,5 +1,6 @@
 import numpy as np
-from nn_framework.shape import StaticShape, DynamicShape, ElementwiseShapeBroadcast
+from nn_framework.shape import make_shape, make_dynamic_shape, elementwise_shape_broadcast, matmul_shape_broadcast, transpose_shape_broadcast
+
 
 class Op(object):
   def __add__(self, b):
@@ -23,15 +24,17 @@ class Op(object):
   def __gt__(self, b):
     return Gt(self, b)
 
-  def dot(self, b):
-    return Dot(self, b)
+  def __matmul__(self, b):
+    return Matmul(self, b)
 
   def t(self):
     return Transpose(self)
 
+
 class UnaryOp(Op):
   def variables(self):
     return self.x.variables()
+
 
 class Neg(UnaryOp):
   def __init__(self, x):
@@ -47,10 +50,11 @@ class Neg(UnaryOp):
   def deriv(self, var, dself):
     return self.x.deriv(var, -dself)
 
+
 class Transpose(UnaryOp):
   def __init__(self, x):
     self.x = x
-    self.shape = BroadcastTranspose(x.shape)
+    self.shape = transpose_shape_broadcast(x.shape)
 
   def eval(self, feeds, cache):
     if not self in cache:
@@ -58,18 +62,21 @@ class Transpose(UnaryOp):
 
     return cache[self]
 
+
 class BinaryOp(Op):
   def variables(self):
     return self.a.variables().union(self.b.variables())
 
+
 class BinaryElementwiseOp(BinaryOp):
   def __init__(self, a, b):
-    self.a, self.b, self.shape = broadcast_elementwise(a, b)
+    self.a, self.b, self.shape = elementwise_broadcast(a, b)
+
 
 class Const(Op):
   def __init__(self, value):
     self.value = np.array(value)
-    self.shape = StaticShape(self.value.shape)
+    self.shape = make_shape(self.value.shape)
 
   def eval(self, feeds, cache):
     return self.value
@@ -83,10 +90,11 @@ class Const(Op):
   def variables(self):
     return set()
 
+
 class Variable(Op):
   def __init__(self, value):
     self.value = np.array(value)
-    self.shape = StaticShape(self.value.shape)
+    self.shape = make_shape(self.value.shape)
 
   def eval(self, feeds, cache):
     return self.value
@@ -103,10 +111,11 @@ class Variable(Op):
   def variables(self):
     return set([self])
 
+
 class Placeholder(Op):
-  def __init__(self, name):
+  def __init__(self, name, shape):
     self.name = name
-    self.shape = DynamicShape(self)
+    self.shape = make_dynamic_shape(shape, self)
 
   def eval(self, feeds, cache):
     return np.array(feeds[self])
@@ -119,6 +128,7 @@ class Placeholder(Op):
 
   def variables(self):
     return set()
+
 
 class Assign(Op):
   def __init__(self, var, exp):
@@ -133,6 +143,7 @@ class Assign(Op):
       cache[self] = self.var.value
 
     return cache[self]
+
 
 class Add(BinaryElementwiseOp):
   def eval(self, feeds, cache):
@@ -151,6 +162,7 @@ class Add(BinaryElementwiseOp):
       return da
     else:
       return da + db
+
 
 class Sub(BinaryElementwiseOp):
   def eval(self, feeds, cache):
@@ -171,6 +183,7 @@ class Sub(BinaryElementwiseOp):
     else:
       return da - db
 
+
 class Mul(BinaryElementwiseOp):
   def eval(self, feeds, cache):
     if not self in cache:
@@ -189,6 +202,7 @@ class Mul(BinaryElementwiseOp):
     else:
       return da + db
 
+
 class Div(BinaryElementwiseOp):
   def eval(self, feeds, cache):
     if not self in cache:
@@ -197,17 +211,20 @@ class Div(BinaryElementwiseOp):
     return cache[self]
 
   def deriv(self, var):
-    return (self.b * self.a.deriv(var) - self.a * self.b.deriv(var)) / (self.b ** Const(2))
+    return (self.b * self.a.deriv(var) - self.a * self.b.deriv(var)) / (
+        self.b**Const(2))
+
 
 class Pow(BinaryElementwiseOp):
   def eval(self, feeds, cache):
     if not self in cache:
-      cache[self] = self.a.eval(feeds, cache) ** self.b.eval(feeds, cache)
+      cache[self] = self.a.eval(feeds, cache)**self.b.eval(feeds, cache)
 
     return cache[self]
 
   def deriv(self, var, dself):
-    return self.a.deriv(var, (self.b * self.a) ** (self.b - Const(1)) * dself)
+    return self.a.deriv(var, (self.b * self.a)**(self.b - Const(1)) * dself)
+
 
 class Gt(BinaryElementwiseOp):
   def eval(self, feeds, cache):
@@ -216,21 +233,25 @@ class Gt(BinaryElementwiseOp):
 
     return cache[self]
 
-class Dot(BinaryElementwiseOp):
+
+class Matmul(BinaryElementwiseOp):
   def __init__(self, a, b):
+    a.shape.assert_has_rank(2)
+    b.shape.assert_has_rank(2)
+
     self.a = a
     self.b = b
-    self.shape = BroadcastMatmul(a.shape, b.shape)
+    self.shape = matmul_shape_broadcast(a.shape, b.shape)
 
   def eval(self, feeds, cache):
     if not self in cache:
-      cache[self] = self.a.eval(feeds, cache).dot(self.b.eval(feeds, cache))
+      cache[self] = self.a.eval(feeds, cache) @ self.b.eval(feeds, cache)
 
     return cache[self]
 
   def deriv(self, var, dself):
-    dself_da = dself.dot(self.b.t())
-    dself_db = dself.t().dot(self.a)
+    dself_da = dself @ self.b.t()
+    dself_db = dself.t() @ self.a
     da = self.a.deriv(var, dself_da)
     db = self.b.deriv(var, dself_db.t())
 
@@ -241,33 +262,6 @@ class Dot(BinaryElementwiseOp):
     else:
       return da + db
 
-class BroadcastMatmul(BinaryOp):
-  def __init__(self, a, b):
-    self.a = a
-    self.b = b
-
-  def eval(self, feeds, cache):
-    if not self in cache:
-      a = self.a.eval(feeds, cache)
-      b = self.b.eval(feeds, cache)
-
-      if a[1] != b[0]:
-        raise Exception("Shape %s and %s dimensions do not agree" % (a, b))
-
-      cache[self] = (a[0], b[1])
-
-    return cache[self]
-
-class BroadcastTranspose(object):
-  def __init__(self, value):
-    self.value = value
-
-  def eval(self, feeds, cache):
-    if not self in cache:
-      value = self.value.eval(feeds, cache)
-      cache[self] = (value[1], value[0])
-
-    return cache[self]
 
 class Broadcast(UnaryOp):
   def __init__(self, x, shape):
@@ -275,11 +269,12 @@ class Broadcast(UnaryOp):
     self.shape = shape
 
   def eval(self, feeds, cache):
-    # TODO: i am ignoring broadcasting relying on numpy
-    return self.x.eval(feeds, cache)
+    return np.broadcast_to(
+        self.x.eval(feeds, cache), self.shape.eval(feeds, cache))
 
   def deriv(self, var, dself):
     return self.x.deriv(var, SumToShape(dself, self.x.shape))
+
 
 class SumToShape(Op):
   def __init__(self, tensor, shape):
@@ -292,15 +287,22 @@ class SumToShape(Op):
       shape = self.shape.eval(feeds, cache)
 
       if tensor.shape != shape:
-        axis = np.argmax(np.array(tensor.shape) != np.array(shape))
-        cache[self] = np.sum(tensor, axis=axis, keepdims=True)
+        axes = np.argwhere(np.array(tensor.shape) != np.array(shape)).ravel()
+        result = tensor
+
+        for axis in axes:
+          result = np.sum(result, axis=axis, keepdims=True)
+
+        assert result.shape == shape
+        cache[self] = result
       else:
         cache[self] = tensor
 
     return cache[self]
 
-def broadcast_elementwise(a, b):
-  shape = ElementwiseShapeBroadcast(a.shape, b.shape)
+
+def elementwise_broadcast(a, b):
+  shape = elementwise_shape_broadcast(a.shape, b.shape)
   a_new = Broadcast(a, shape)
   b_new = Broadcast(b, shape)
 
