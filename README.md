@@ -11,5 +11,5 @@ My implementation of different machine learning algorithms and architectures for
 * [Word Embedding with Word2Vec](word_embedding.ipynb)
 * [Automatic Symbolic Differentiation](automatic_symbolic_differentiation.ipynb)
 * [Neural Network Framework (work in progress)](neural_network_framework.ipynb)
-* [Neural Network Framework V2 (TensorFlow-like API, with automatic differentiation and computation graphs) (work in progress)](nn_framework_experiments.ipynb)
+* [Neural Network Framework V2 (TensorFlow-like API, with automatic differentiation and computation graphs) (work in progress)](neural_network_framework_v2.ipynb)
 * [Cheatsheet](cheatsheet.ipynb)
