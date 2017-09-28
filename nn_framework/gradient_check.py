@@ -1,5 +1,5 @@
 import numpy as np
-from nn_framework.utils import Ones
+from nn_framework.op import Ones
 from nn_framework.session import Session
 
 e = 1e-7
