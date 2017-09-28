@@ -1,42 +1,42 @@
 import numpy as np
+from nn_framework import framework as nn
 
-# from nn_framework.shape import make_shape, make_dynamic_shape, elementwise_shape_broadcast, matmul_shape_broadcast, transpose_shape_broadcast
-
-
-def to_op(value):
-  if isinstance(value, Op):
-    return value
-  else:
-    return Const(np.array(value))
+# import nn_framework.framework as nn
 
 
 class Op(object):
   def __add__(self, b):
-    return Add(self, b)
+    return nn.add(self, b)
 
   def __sub__(self, b):
-    return Sub(self, b)
+    return nn.sub(self, b)
+
+  def __rsub__(self, a):
+    return nn.sub(a, self)
 
   def __mul__(self, b):
-    return Mul(self, b)
+    return nn.mul(self, b)
+
+  def __rmul__(self, a):
+    return nn.mul(a, self)
 
   def __truediv__(self, b):
-    return Div(self, b)
+    return nn.div(self, b)
 
   def __pow__(self, b):
-    return Pow(self, b)
+    return nn.pow(self, b)
 
   def __matmul__(self, b):
-    return Matmul(self, b)
+    return nn.matmul(self, b)
 
   def __gt__(self, b):
-    return Gt(self, b)
+    return nn.gt(self, b)
 
   def __neg__(self):
-    return Neg(self)
+    return nn.neg(self)
 
   def t(self):
-    return Transpose(self)
+    return nn.transpose(self)
 
 
 class UnaryOp(Op):
@@ -104,7 +104,7 @@ class Const(Op):
 
 class Variable(Op):
   def __init__(self, init_value):
-    self.init_value = to_op(init_value)
+    self.init_value = init_value
     self.shape = self.init_value.shape
     self.value = None
 
@@ -230,7 +230,7 @@ class Div(ElementwiseBinaryOp):
 
   def deriv(self, var):
     return (self.b * self.a.deriv(var) - self.a * self.b.deriv(var)) / (
-        self.b**Const(2))
+        self.b**2)
 
 
 class Pow(ElementwiseBinaryOp):
@@ -241,14 +241,13 @@ class Pow(ElementwiseBinaryOp):
     return cache[self]
 
   def deriv(self, var, dself):
-    return self.a.deriv(var, (self.b * self.a)**(self.b - Const(1)) * dself)
+    return self.a.deriv(var, (self.b * self.a)**(self.b - 1) * dself)
 
 
 class Gt(ElementwiseBinaryOp):
   def eval(self, feeds, cache):
     if not self in cache:
       cache[self] = self.a.eval(feeds, cache) > self.b.eval(feeds, cache)
-      # print(cache[self])
 
     return cache[self]
 
@@ -320,50 +319,71 @@ class SumToShape(Op):
     return cache[self]
 
 
-class Maximum(ElementwiseBinaryOp):
-  def eval(self, feeds, cache):
-    if not self in cache:
-      a = self.a.eval(feeds, cache)
-      b = self.b.eval(feeds, cache)
-      return np.maximum(a, b)
-
-    return cache[self]
-
-  def deriv(self, var, dself):
-    dself_da = self.a > self.b
-    dself_db = self.b > self.a
-
-    da = self.a.deriv(var, dself_da * dself)
-    db = self.b.deriv(var, dself_db * dself)
-
-    if da is None:
-      return db
-    elif db is None:
-      return da
-    else:
-      return da + db
-
-
-class Mean(UnaryOp):
-  def __init__(self, x):
-    x.shape.assert_has_rank(2)
-    self.x = x
-    self.shape = make_shape(())
-
-  def eval(self, feeds, cache):
-    return np.mean(self.x.eval(feeds, cache))
-
-  def deriv(self, var, dself):
-    dself_dx = Ones(self.x.shape) / (self.x.shape[0] * self.x.shape[1])
-    return self.x.deriv(var, dself * dself_dx)
-
-
 def elementwise_broadcast(a, b):
   shape = elementwise_shape_broadcast(a.shape, b.shape)
   a_new = Broadcast(a, shape)
   b_new = Broadcast(b, shape)
 
   return a_new, b_new, shape
+
+
+class Ones(Op):
+  def __init__(self, shape):
+    self.shape = shape
+
+  def eval(self, feeds, cache):
+    if not self in cache:
+      cache[self] = np.ones(self.shape.eval(feeds, cache))
+
+    return cache[self]
+
+
+class Group(Op):
+  def __init__(self, expressions):
+    self.expressions = expressions
+
+  def eval(self, feeds, cache):
+    if not self in cache:
+      cache[self] = [exp.eval(feeds, cache) for exp in self.expressions]
+
+    return cache[self]
+
+
+class Zeros(Op):
+  def __init__(self, shape):
+    self.shape = shape
+
+  def eval(self, feeds, cache):
+    if not self in cache:
+      cache[self] = np.zeros(self.shape.eval(feeds, cache))
+
+    return cache[self]
+
+
+class RandomNormal(Const):
+  def __init__(self, shape):
+    self.shape = shape
+
+  def eval(self, feeds, cache):
+    if not self in cache:
+      shape = self.shape.eval(feeds, cache)
+      cache[self] = np.random.randn(*shape)
+      assert cache[self].shape == shape
+
+    return cache[self]
+
+
+class RandomUniform(Const):
+  def __init__(self, shape):
+    self.shape = shape
+
+  def eval(self, feeds, cache):
+    if not self in cache:
+      shape = self.shape.eval(feeds, cache)
+      cache[self] = np.random.rand(*shape)
+      assert cache[self].shape == shape
+
+    return cache[self]
 
 
 def make_shape(dims):
@@ -424,96 +444,6 @@ class _Shape(object):
 
   def __str__(self):
     return 'Shape([%s])' % ', '.join([dim.__str__() for dim in self.dims])
-
-
-# class StaticShape(Shape):
-#   def __init__(self, dims):
-#     self.dims = dims
-
-#   def eval(self, feeds, cache):
-#     if not self in cache:
-#       cache[self] = self.dims
-
-#     return cache[self]
-
-# class DynamicShape(Shape):
-#   def __init__(self, tensor):
-#     self.tensor = tensor
-
-#   def eval(self, feeds, cache):
-#     if not self in cache:
-#       cache[self] = self.tensor.eval(feeds, cache).shape
-
-#     return cache[self]
-
-# class ElementwiseShapeBroadcast(Shape):
-#   def __init__(self, a, b):
-#     self.a = a
-#     self.b = b
-
-#   def eval(self, feeds, cache):
-#     if not self in cache:
-#       a = self.a.eval(feeds, cache)
-#       b = self.b.eval(feeds, cache)
-
-#       if a == b:
-#         cache[self] = a
-
-#       if len(a) == 2 and len(b) == 2:
-#         if a[0] == b[0]:
-#           if a[1] == 1:
-#             cache[self] = (a[0], b[1])
-#           if b[1] == 1:
-#             cache[self] = (a[0], a[1])
-#         if a[1] == b[1]:
-#           if a[0] == 1:
-#             cache[self] = (b[0], a[1])
-#           if b[0] == 1:
-#             cache[self] = (a[0], a[1])
-
-#       if len(a) == 2 and len(b) == 0:
-#         cache[self] = a
-
-#       if len(a) == 0 and len(b) == 2:
-#         cache[self] = b
-
-#       if not self in cache:
-#         raise Exception('Can not broadcast %s and %s' % (a, b))
-
-#     return cache[self]
-
-# class MatmulShapeBroadcast(Shape):
-#   def __init__(self, a, b):
-#     a.assert_has_rank(2)
-#     b.assert_has_rank(2)
-
-#     self.a = a
-#     self.b = b
-#     super().__init__((a[0], b[1]))
-
-#   def eval(self, feeds, cache):
-#     if not self in cache:
-#       a = self.a.eval(feeds, cache)
-#       b = self.b.eval(feeds, cache)
-
-#       if a[1] != b[0]:
-#         raise Exception("Shape %s and %s dimensions do not agree" % (a, b))
-
-#       cache[self] = (a[0], b[1])
-
-#     return cache[self]
-
-# class GetItem(object):
-#   def __init__(self, value, *keys):
-#     self.value = value
-#     self.keys = keys
-#     self.shape = make_shape(())
-
-#   def eval(self, feeds, cache):
-#     if not self in cache:
-#       cache[self] = self.value.eval(feeds, cache).__getitem__(*self.keys)
-
-#     return cache[self]
 
 
 def make_dimension(dim):
@@ -578,28 +508,5 @@ class _DimensionBroadcast(_Dimension):
       else:
         raise Exception('Cannot broadcast dimension %s to dimension %s' % (a,
                                                                            b))
-
-    return cache[self]
-
-
-# class StaticDimension(Dimension):
-#   def __init__(self, value):
-#     self.value = value
-
-# class DynamicDimension(Dimension):
-#   # def __init__(self):
-
-#   def eval(self, feeds, cache):
-#     self.shape.eval(index)
-#     # self.tensor.eval().shape[self.index]
-
-
-class Ones(Op):
-  def __init__(self, shape):
-    self.shape = shape
-
-  def eval(self, feeds, cache):
-    if not self in cache:
-      cache[self] = np.ones(self.shape.eval(feeds, cache))
 
     return cache[self]

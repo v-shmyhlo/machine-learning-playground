@@ -1,5 +1,5 @@
 import numpy as np
-from nn_framework.op import Ones
+from nn_framework import framework as nn
 from nn_framework.session import Session
 
 e = 1e-7
@@ -10,7 +10,7 @@ ord = None
 
 def gradient_check(exp, feeds):
   variables = exp.variables()
-  grads = [exp.deriv(var, Ones(exp.shape)) for var in variables]
+  grads = [exp.deriv(var, nn.ones(exp.shape)) for var in variables]
 
   sess = Session()
   grads_computed = sess.run(grads, feeds)
