@@ -26,11 +26,17 @@ class Op(object):
   def __pow__(self, b):
     return nn.pow(self, b)
 
+  def __rpow__(self, a):
+    return nn.pow(a, self)
+
   def __matmul__(self, b):
     return nn.matmul(self, b)
 
   def __gt__(self, b):
     return nn.gt(self, b)
+
+  def __ge__(self, b):
+    return nn.ge(self, b)
 
   def __neg__(self):
     return nn.neg(self)
@@ -69,6 +75,9 @@ class Transpose(UnaryOp):
       cache[self] = self.x.eval(feeds, cache).T
 
     return cache[self]
+
+  def deriv(self, var, dself):
+    return self.x.deriv(var, dself.t())
 
 
 class BinaryOp(Op):
@@ -146,6 +155,10 @@ class Placeholder(Op):
 
   def variables(self):
     return set()
+
+  def __str__(self):
+    return '%s(%s, shape=%s)' % (self.__class__.__name__, self.name,
+                                 self.shape)
 
 
 class Assign(Op):
@@ -241,13 +254,29 @@ class Pow(ElementwiseBinaryOp):
     return cache[self]
 
   def deriv(self, var, dself):
-    return self.a.deriv(var, (self.b * self.a)**(self.b - 1) * dself)
+    return self.a.deriv(var, dself * (self.b * self.a)**(self.b - 1))
 
 
 class Gt(ElementwiseBinaryOp):
   def eval(self, feeds, cache):
     if not self in cache:
       cache[self] = self.a.eval(feeds, cache) > self.b.eval(feeds, cache)
+
+    return cache[self]
+
+
+class Ge(ElementwiseBinaryOp):
+  def eval(self, feeds, cache):
+    if not self in cache:
+      cache[self] = self.a.eval(feeds, cache) >= self.b.eval(feeds, cache)
+
+    return cache[self]
+
+
+class Eq(ElementwiseBinaryOp):
+  def eval(self, feeds, cache):
+    if not self in cache:
+      cache[self] = self.a.eval(feeds, cache) == self.b.eval(feeds, cache)
 
     return cache[self]
 
@@ -362,7 +391,7 @@ class Zeros(Op):
 
 class RandomNormal(Const):
   def __init__(self, shape):
-    self.shape = shape
+    self.shape = make_shape(shape)
 
   def eval(self, feeds, cache):
     if not self in cache:
@@ -423,6 +452,18 @@ def transpose_shape_broadcast(shape):
   shape.assert_has_rank(2)
 
   return make_shape((shape[1], shape[0]))
+
+
+class Sqrt(UnaryOp):
+  def __init__(self, x):
+    self.x = x
+    self.shape = self.x.shape
+
+  def eval(self, feeds, cache):
+    if not self in cache:
+      cache[self] = np.sqrt(self.x.eval(feeds, cache))
+
+    return cache[self]
 
 
 class _Shape(object):

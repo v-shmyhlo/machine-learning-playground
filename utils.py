@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def plot_decision_boundary(model, X, y, cmap=plt.cm.Spectral):
+def plot_decision_boundary(model, X, y, cmap=None, s=None):
   # Set min and max values and give it some padding
   offset = 0.5
   x_min, x_max = X[0, :].min() - offset, X[0, :].max() + offset
@@ -14,5 +14,5 @@ def plot_decision_boundary(model, X, y, cmap=plt.cm.Spectral):
   Z = model(np.c_[xx.ravel(), yy.ravel()])
   Z = Z.reshape(xx.shape)
   # Plot the contour and training examples
-  plt.scatter(X[0, :], X[1, :], c=y, cmap=cmap)
-  plt.contourf(xx, yy, Z, cmap=cmap, alpha=0.5)
+  plt.scatter(X[0, :], X[1, :], c=y, cmap=cmap, s=s)
+  plt.contourf(xx, yy, Z, cmap=cmap, alpha=0.5, s=s)

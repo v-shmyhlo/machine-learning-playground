@@ -3,7 +3,7 @@ import nn_framework.op as op
 import nn_framework.functions as fn
 from nn_framework.session import Session
 from nn_framework.gradient_check import gradient_check
-from nn_framework.optimizers import GradientDescentOptimizer, MomentumOptimizer
+from nn_framework.optimizers import GradientDescentOptimizer, MomentumOptimizer, AdamOptimizer
 
 
 def to_op(value):
@@ -61,6 +61,14 @@ def gt(a, b):
   return op.Gt(to_op(a), to_op(b))
 
 
+def ge(a, b):
+  return op.Ge(to_op(a), to_op(b))
+
+
+def eq(a, b):
+  return op.Eq(to_op(a), to_op(b))
+
+
 def neg(x):
   return op.Neg(to_op(x))
 
@@ -73,12 +81,20 @@ def logistic_loss(a, y):
   return fn.LogisticLoss(a=to_op(a), y=to_op(y))
 
 
+def sigmoid_logistic_loss(_sentinel=None, logits=None, labels=None):
+  return fn.SigmoidLogisticLoss(z=to_op(logits), y=to_op(labels))
+
+
 def maximum(a, b):
   return fn.Maximum(to_op(a), to_op(b))
 
 
 def relu(x):
   return maximum(0, x)
+
+
+def leaky_relu(x):
+  return maximum(0.1 * x, x)
 
 
 def sigmoid(x):
@@ -103,3 +119,7 @@ def random_uniform(shape):
 
 def dropout(x, keep_prob):
   return fn.Dropout(to_op(x), to_op(keep_prob))
+
+
+def sqrt(x):
+  return op.Sqrt(to_op(x))

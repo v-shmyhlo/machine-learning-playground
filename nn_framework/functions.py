@@ -16,7 +16,7 @@ class Sigmoid(op.UnaryOp):
     return cache[self]
 
   def deriv(self, var, dself):
-    return self.x.deriv(var, self.dself_dx * dself)
+    return self.x.deriv(var, dself * self.dself_dx)
 
 
 class LogisticLoss(op.Op):
@@ -34,17 +34,44 @@ class LogisticLoss(op.Op):
     if not self in cache:
       a = self.a.eval(feeds, cache)
       y = self.y.eval(feeds, cache)
-      # assert np.all(a > 0) and np.all((1 - a) > 0)
       cache[self] = -np.log(a) * y + -np.log(1 - a) * (1 - y)
 
     return cache[self]
 
   def deriv(self, var, dself):
     # TODO: this is not full implementation, it ignores derivatives w.r.t. y
-    return self.a.deriv(var, self.dself_da * dself)
+    return self.a.deriv(var, dself * self.dself_da)
+
+
+class SigmoidLogisticLoss(op.Op):
+  def __init__(self, _sentinel=None, z=None, y=None):
+    z.shape.assert_has_rank(2)
+    y.shape.assert_has_rank(2)
+
+    self.z, self.y, self.shape = op.elementwise_broadcast(z, y)
+    a = nn.sigmoid(self.z)
+    self.dself_dz = a - self.y
+    self.eval_op = nn.logistic_loss(a=a, y=self.y)
+
+  def variables(self):
+    return self.z.variables().union(self.y.variables())
+
+  def eval(self, feeds, cache):
+    if not self in cache:
+      cache[self] = self.eval_op.eval(feeds, cache)
+
+    return cache[self]
+
+  def deriv(self, var, dself):
+    return self.z.deriv(var, dself * self.dself_dz)
 
 
 class Maximum(op.ElementwiseBinaryOp):
+  def __init__(self, a, b):
+    super().__init__(a, b)
+    self.dself_da = self.a > self.b
+    self.dself_db = self.b >= self.a  # TODO: gt or ge?
+
   def eval(self, feeds, cache):
     if not self in cache:
       a = self.a.eval(feeds, cache)
@@ -54,11 +81,8 @@ class Maximum(op.ElementwiseBinaryOp):
     return cache[self]
 
   def deriv(self, var, dself):
-    dself_da = self.a > self.b
-    dself_db = self.b > self.a
-
-    da = self.a.deriv(var, dself_da * dself)
-    db = self.b.deriv(var, dself_db * dself)
+    da = self.a.deriv(var, self.dself_da * dself)
+    db = self.b.deriv(var, self.dself_db * dself)
 
     if da is None:
       return db
@@ -73,13 +97,13 @@ class Mean(op.UnaryOp):
     x.shape.assert_has_rank(2)
     self.x = x
     self.shape = op.make_shape(())
+    self.dself_dx = nn.ones(self.x.shape) / (self.x.shape[0] * self.x.shape[1])
 
   def eval(self, feeds, cache):
     return np.mean(self.x.eval(feeds, cache))
 
   def deriv(self, var, dself):
-    dself_dx = nn.ones(self.x.shape) / (self.x.shape[0] * self.x.shape[1])
-    return self.x.deriv(var, dself * dself_dx)
+    return self.x.deriv(var, dself * self.dself_dx)
 
 
 class Dropout(op.UnaryOp):

@@ -5,24 +5,29 @@ from nn_framework import framework as nn
 class Optimizer(op.Op):
   def eval(self, feeds, cache):
     if not self in cache:
-      updates = [upd.eval(feeds, cache) for upd in self.updates]
-      increment = self.increment.eval(feeds, cache)
-      cache[self] = (updates, increment)
+      cache[self] = self.step.eval(feeds, cache)
 
     return cache[self]
 
 
 class GradientDescentOptimizer(Optimizer):
   def __init__(self, f, learning_rate, global_step=None):
-    self.updates = [
-        v.assign(v - learning_rate * f.deriv(v, nn.ones(f.shape)))
-        for v in f.variables()
+    variables = f.variables()
+    gradients = [f.deriv(v, nn.ones(f.shape)) for v in variables]
+    updates = [
+        v.assign(v - learning_rate * dv)
+        for (v, dv) in zip(variables, gradients)
     ]
-    self.increment = global_step.assign(global_step + 1)
+
+    self.step = nn.group([
+        nn.group(variables),
+        nn.group(gradients),
+        nn.group(updates),
+        global_step.assign(global_step + 1)
+    ])
 
 
-def momentum_update(f, v, learning_rate, beta):
-  dv = f.deriv(v, nn.ones(f.shape))
+def momentum_update(v, dv, learning_rate, beta):
   avg = nn.variable(nn.zeros(dv.shape))
   avg_upd = avg.assign(beta * avg + (1 - beta) * dv)
   upd = v.assign(v - learning_rate * avg)
@@ -31,7 +36,55 @@ def momentum_update(f, v, learning_rate, beta):
 
 class MomentumOptimizer(Optimizer):
   def __init__(self, f, learning_rate, global_step=None, beta=0.9):
-    self.updates = [
-        momentum_update(f, v, learning_rate, beta) for v in f.variables()
+    variables = f.variables()
+    gradients = [f.deriv(v, nn.ones(f.shape)) for v in variables]
+    updates = [
+        momentum_update(v, dv, learning_rate, beta)
+        for (v, dv) in zip(variables, gradients)
     ]
-    self.increment = global_step.assign(global_step + 1)
+
+    self.step = nn.group([
+        nn.group(variables),
+        nn.group(gradients),
+        nn.group(updates),
+        global_step.assign(global_step + 1)
+    ])
+
+
+def adam_update(v, dv, learning_rate, global_step, beta1, beta2, eps):
+  t = global_step + 1
+  avg = nn.variable(nn.zeros(dv.shape))
+  s = nn.variable(nn.zeros(dv.shape))
+
+  avg_upd = avg.assign(beta1 * avg + (1 - beta1) * dv)
+  s_upd = s.assign(beta2 * s + (1 - beta2) * dv**2)
+
+  avg_corr = avg / (1 - beta1**t)
+  s_corr = s / (1 - beta2**t)
+
+  upd_value = avg_corr / nn.sqrt(s_corr + eps)
+  upd = v.assign(v - learning_rate * upd_value)
+  return nn.group((avg_upd, s_upd, upd))
+
+
+class AdamOptimizer(Optimizer):
+  def __init__(self,
+               f,
+               learning_rate,
+               global_step=None,
+               beta1=0.9,
+               beta2=0.999,
+               eps=1e-8):
+    variables = f.variables()
+    gradients = [f.deriv(v, nn.ones(f.shape)) for v in variables]
+    updates = [
+        adam_update(v, dv, learning_rate, global_step, beta1, beta2, eps)
+        for (v, dv) in zip(variables, gradients)
+    ]
+
+    self.step = nn.group([
+        nn.group(variables),
+        nn.group(gradients),
+        nn.group(updates),
+        global_step.assign(global_step + 1)
+    ])
