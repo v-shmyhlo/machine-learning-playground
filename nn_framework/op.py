@@ -1,8 +1,6 @@
 import numpy as np
 from nn_framework import framework as nn
 
-# import nn_framework.framework as nn
-
 
 class Op(object):
   def __add__(self, b):
@@ -22,6 +20,9 @@ class Op(object):
 
   def __truediv__(self, b):
     return nn.div(self, b)
+
+  def __rtruediv__(self, a):
+    return nn.div(a, self)
 
   def __pow__(self, b):
     return nn.pow(self, b)
@@ -241,9 +242,19 @@ class Div(ElementwiseBinaryOp):
 
     return cache[self]
 
-  def deriv(self, var):
-    return (self.b * self.a.deriv(var) - self.a * self.b.deriv(var)) / (
-        self.b**2)
+  def deriv(self, var, dself):
+    dself_da = self.b / self.b**2
+    dself_db = -self.a / self.b**2
+
+    da = self.a.deriv(var, dself * dself_da)
+    db = self.b.deriv(var, dself * dself_db)
+
+    if da is None:
+      return db
+    elif db is None:
+      return da
+    else:
+      return da + db
 
 
 class Pow(ElementwiseBinaryOp):
@@ -254,7 +265,15 @@ class Pow(ElementwiseBinaryOp):
     return cache[self]
 
   def deriv(self, var, dself):
-    return self.a.deriv(var, dself * (self.b * self.a)**(self.b - 1))
+    da = self.a.deriv(var, dself * self * (self.b / self.a))
+    db = self.b.deriv(var, dself * self * nn.log(self.a))
+
+    if da is None:
+      return db
+    elif db is None:
+      return da
+    else:
+      return da + db
 
 
 class Gt(ElementwiseBinaryOp):
@@ -320,7 +339,9 @@ class Broadcast(UnaryOp):
         self.x.eval(feeds, cache), self.shape.eval(feeds, cache))
 
   def deriv(self, var, dself):
-    return self.x.deriv(var, SumToShape(dself, self.x.shape))
+    dx = self.x.deriv(var, SumToShape(dself, self.x.shape))
+
+    return dx
 
 
 class SumToShape(Op):
@@ -438,7 +459,7 @@ def elementwise_shape_broadcast(a, b):
     return make_shape((dimension_broadcast(a[0], b[0]), dimension_broadcast(
         a[1], b[1])))
 
-  raise Exception('Can not broadcast %s and %s' % (a, b))
+  raise Exception("Can't broadcast %s and %s" % (a, b))
 
 
 def matmul_shape_broadcast(a, b):
@@ -452,6 +473,41 @@ def transpose_shape_broadcast(shape):
   shape.assert_has_rank(2)
 
   return make_shape((shape[1], shape[0]))
+
+
+class Log(UnaryOp):
+  def __init__(self, x):
+    self.x = x
+    self.shape = self.x.shape
+    self.dself_dx = 1 / self.x
+
+  def eval(self, feeds, cache):
+    if not self in cache:
+      cache[self] = np.log(self.x.eval(feeds, cache))
+
+    return cache[self]
+
+  def deriv(self, var, dself):
+    return self.x.deriv(var, dself * self.dself_dx)
+
+
+class Sum0(UnaryOp):
+  def __init__(self, x):
+    x.shape.assert_has_rank(2)
+
+    self.x = x
+    self.shape = make_shape((1, self.x.shape[1]))
+    self.dself_dx = nn.ones(self.x.shape)
+
+  def eval(self, feeds, cache):
+    if not self in cache:
+      cache[self] = np.sum(self.x.eval(feeds, cache), axis=0, keepdims=True)
+
+    return cache[self]
+
+  def deriv(self, var, dself):
+    dx = self.x.deriv(var, dself * self.dself_dx)
+    return dx
 
 
 class Sqrt(UnaryOp):
@@ -547,7 +603,7 @@ class _DimensionBroadcast(_Dimension):
       elif b == 1:
         cache[self] = a
       else:
-        raise Exception('Cannot broadcast dimension %s to dimension %s' % (a,
-                                                                           b))
+        raise Exception("Can't broadcast dimension %s to dimension %s" % (a,
+                                                                          b))
 
     return cache[self]

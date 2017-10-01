@@ -12,4 +12,5 @@ My implementation of different machine learning algorithms and architectures for
 * [Automatic Symbolic Differentiation](automatic_symbolic_differentiation.ipynb)
 * [Neural Network Framework (work in progress)](neural_network_framework.ipynb)
 * [Neural Network Framework V2 (TensorFlow-like API, with automatic differentiation and computation graphs) (work in progress)](neural_network_framework_v2.ipynb)
+* [Neural Network Framework V2 MNIST (work in progress)](neural_network_framework_v2_mnist.ipynb)
 * [Cheatsheet](cheatsheet.ipynb)

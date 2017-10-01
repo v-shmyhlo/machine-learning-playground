@@ -7,6 +7,7 @@ from nn_framework.optimizers import GradientDescentOptimizer, MomentumOptimizer,
 
 
 def to_op(value):
+  assert value is not None, "operation can't be None"
   if isinstance(value, op.Op):
     return value
   else:
@@ -81,7 +82,7 @@ def logistic_loss(a, y):
   return fn.LogisticLoss(a=to_op(a), y=to_op(y))
 
 
-def sigmoid_logistic_loss(_sentinel=None, logits=None, labels=None):
+def sigmoid_logistic_loss(logits, labels):
   return fn.SigmoidLogisticLoss(z=to_op(logits), y=to_op(labels))
 
 
@@ -123,3 +124,27 @@ def dropout(x, keep_prob):
 
 def sqrt(x):
   return op.Sqrt(to_op(x))
+
+
+def sum0(x):
+  return op.Sum0(to_op(x))
+
+
+def log(x):
+  return op.Log(to_op(x))
+
+
+def softmax_cross_entropy(logits, labels):
+  z, y = to_op(logits), to_op(labels)
+  return cross_entropy(s=softmax(z), y=y)
+
+
+def cross_entropy(s, y):
+  s, y = to_op(s), to_op(y)
+  return -sum0(y * log(s))
+
+
+def softmax(x):
+  x = to_op(x)
+  exp = np.e**x
+  return exp / sum0(exp)

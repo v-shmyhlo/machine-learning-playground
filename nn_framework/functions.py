@@ -66,6 +66,29 @@ class SigmoidLogisticLoss(op.Op):
     return self.z.deriv(var, dself * self.dself_dz)
 
 
+# class SoftmaxCrossEntropy(op.Op):
+#   def __init__(self, z, y):
+#     z.shape.assert_has_rank(2)
+#     y.shape.assert_has_rank(2)
+
+#     self.z, self.y, self.shape = op.elementwise_broadcast(z, y)
+#     # exp = np.e ** z
+#     # # self.eval_op =
+
+#   def eval(self, feeds, cache):
+#     if not self in cache:
+
+#       cache[self] = cross_entropy
+
+#     return cache[self]
+
+#   def deriv(self, var, dself):
+#     # return self.deriv()
+
+#   def variables(self):
+#     return self.z.variables().union(self.y.variables())
+
+
 class Maximum(op.ElementwiseBinaryOp):
   def __init__(self, a, b):
     super().__init__(a, b)
