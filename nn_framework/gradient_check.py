@@ -56,6 +56,7 @@ def gradient_check(exp, feeds={}):
 
   check = np.linalg.norm(grads_approx - grads_computed) / (
       np.linalg.norm(grads_approx) + np.linalg.norm(grads_computed))
+
   assert check > 0 and check < limit, "%s should be < %s" % (check, limit)
   print('gradient check: %s' % check)
   return check

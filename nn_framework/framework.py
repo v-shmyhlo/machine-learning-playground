@@ -1,5 +1,5 @@
 import numpy as np
-import nn_framework.op as op
+from nn_framework.op import is_op
 import nn_framework.ops as ops
 from nn_framework.session import Session
 from nn_framework.gradient_check import gradient_check
@@ -8,10 +8,10 @@ from nn_framework.optimizers import GradientDescentOptimizer, MomentumOptimizer,
 
 def _to_op(value):
   assert value is not None, "operation can't be None"
-  if op.is_op(value):
+  if is_op(value):
     return value
   else:
-    return ops.Const(np.array(value))
+    return const(np.array(value))
 
 
 def _to_op1(f):
@@ -22,8 +22,9 @@ def _to_op2(f):
   return lambda a, b: f(_to_op(a), _to_op(b))
 
 
-def const(x):
-  return ops.Const(x)
+def const(value):
+  assert not is_op(value), "const value can't be operation"
+  return ops.Const(value)
 
 
 @_to_op1
@@ -131,7 +132,7 @@ def mean(x):
 
 
 def group(xs):
-  return ops.Group(xs)
+  return ops.Group([_to_op(x) for x in xs])
 
 
 def random_normal(shape):
