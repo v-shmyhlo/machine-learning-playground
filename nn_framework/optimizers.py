@@ -3,11 +3,8 @@ from nn_framework import framework as nn
 
 
 class Optimizer(op.Op):
-  def eval(self, feeds, cache):
-    if not self in cache:
-      cache[self] = self.step.eval(feeds, cache)
-
-    return cache[self]
+  def _eval(self, feeds, cache):
+    return self.step.eval(feeds, cache)
 
 
 class GradientDescentOptimizer(Optimizer):

@@ -1,5 +1,5 @@
 import numpy as np
-from nn_framework import framework as nn
+import nn_framework.ops as ops
 from nn_framework.session import Session
 
 eps = 1e-7
@@ -8,7 +8,7 @@ limit = 1e-7
 
 def gradient_check(exp, feeds={}):
   variables = exp.variables()
-  grads = [exp.deriv(var, nn.ones(exp.shape)) for var in variables]
+  grads = [exp.deriv(var, ops.Ones(exp.shape)) for var in variables]
 
   sess = Session()
   sess.run([exp], feeds)  # initialize vars

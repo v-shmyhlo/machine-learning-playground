@@ -1,95 +1,117 @@
 import numpy as np
 import nn_framework.op as op
-import nn_framework.functions as fn
+import nn_framework.ops as ops
 from nn_framework.session import Session
 from nn_framework.gradient_check import gradient_check
 from nn_framework.optimizers import GradientDescentOptimizer, MomentumOptimizer, AdamOptimizer
 
 
-def to_op(value):
+def _to_op(value):
   assert value is not None, "operation can't be None"
-  if isinstance(value, op.Op):
+  if op.is_op(value):
     return value
   else:
-    return op.Const(np.array(value))
+    return ops.Const(np.array(value))
+
+
+def _to_op1(f):
+  return lambda x: f(_to_op(x))
+
+
+def _to_op2(f):
+  return lambda a, b: f(_to_op(a), _to_op(b))
 
 
 def const(x):
-  return op.Const(x)
+  return ops.Const(x)
 
 
+@_to_op1
 def variable(x):
-  return op.Variable(to_op(x))
+  return ops.Variable(x)
 
 
 def placeholder(name, shape):
-  return op.Placeholder(name, shape)
+  return ops.Placeholder(name, shape)
 
 
 def ones(shape):
-  return op.Ones(shape)
+  return ops.Ones(shape)
 
 
 def zeros(shape):
-  return op.Zeros(shape)
+  return ops.Zeros(shape)
 
 
+@_to_op2
 def add(a, b):
-  return op.Add(to_op(a), to_op(b))
+  return ops.Add(a, b)
 
 
+@_to_op2
 def sub(a, b):
-  return op.Sub(to_op(a), to_op(b))
+  return ops.Sub(a, b)
 
 
+@_to_op2
 def mul(a, b):
-  return op.Mul(to_op(a), to_op(b))
+  return ops.Mul(a, b)
 
 
+@_to_op2
 def div(a, b):
-  return op.Div(to_op(a), to_op(b))
+  return ops.Div(a, b)
 
 
+@_to_op2
 def pow(a, b):
-  return op.Pow(to_op(a), to_op(b))
+  return ops.Pow(a, b)
 
 
+@_to_op2
 def matmul(a, b):
-  return op.Matmul(to_op(a), to_op(b))
+  return ops.Matmul(a, b)
 
 
+@_to_op2
 def gt(a, b):
-  return op.Gt(to_op(a), to_op(b))
+  return ops.Gt(a, b)
 
 
+@_to_op2
 def ge(a, b):
-  return op.Ge(to_op(a), to_op(b))
+  return ops.Ge(a, b)
 
 
+@_to_op2
 def eq(a, b):
-  return op.Eq(to_op(a), to_op(b))
+  return ops.Eq(a, b)
 
 
+@_to_op1
 def neg(x):
-  return op.Neg(to_op(x))
+  return ops.Neg(x)
 
 
+@_to_op1
 def transpose(x):
-  return op.Transpose(to_op(x))
+  return ops.Transpose(x)
 
 
 def logistic_loss(a, y):
-  return fn.LogisticLoss(a=to_op(a), y=to_op(y))
+  return ops.LogisticLoss(a=_to_op(a), y=_to_op(y))
 
 
 def sigmoid_logistic_loss(logits, labels):
-  return fn.SigmoidLogisticLoss(z=to_op(logits), y=to_op(labels))
+  return ops.SigmoidLogisticLoss(z=_to_op(logits), y=_to_op(labels))
 
 
+@_to_op2
 def maximum(a, b):
-  return fn.Maximum(to_op(a), to_op(b))
+  return ops.Maximum(a, b)
 
 
+@_to_op1
 def relu(x):
   return maximum(0, x)
 
@@ -98,53 +120,58 @@ def leaky_relu(x):
   return maximum(0.1 * x, x)
 
 
+@_to_op1
 def sigmoid(x):
-  return fn.Sigmoid(to_op(x))
+  return ops.Sigmoid(x)
 
 
+@_to_op1
 def mean(x):
-  return fn.Mean(to_op(x))
+  return ops.Mean(x)
 
 
-def group(ops):
-  return op.Group(ops)
+def group(xs):
+  return ops.Group(xs)
 
 
 def random_normal(shape):
-  return op.RandomNormal(shape)
+  return ops.RandomNormal(shape)
 
 
 def random_uniform(shape):
-  return op.RandomUniform(shape)
+  return ops.RandomUniform(shape)
 
 
 def dropout(x, keep_prob):
-  return fn.Dropout(to_op(x), to_op(keep_prob))
+  return ops.Dropout(_to_op(x), _to_op(keep_prob))
 
 
+@_to_op1
 def sqrt(x):
-  return op.Sqrt(to_op(x))
+  return ops.Sqrt(x)
 
 
+@_to_op1
 def sum0(x):
-  return op.Sum0(to_op(x))
+  return ops.Sum0(x)
 
 
+@_to_op1
 def log(x):
-  return op.Log(to_op(x))
+  return ops.Log(x)
 
 
 def softmax_cross_entropy(logits, labels):
-  z, y = to_op(logits), to_op(labels)
+  z, y = _to_op(logits), _to_op(labels)
   return cross_entropy(s=softmax(z), y=y)
 
 
 def cross_entropy(s, y):
-  s, y = to_op(s), to_op(y)
+  s, y = _to_op(s), _to_op(y)
   return -sum0(y * log(s))
 
 
 def softmax(x):
-  x = to_op(x)
+  x = _to_op(x)
   exp = np.e**x
   return exp / sum0(exp)
