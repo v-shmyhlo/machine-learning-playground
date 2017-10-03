@@ -413,3 +413,25 @@ class Dropout(op.UnaryOp):
 
   def _deriv(self, var, dself):
     return self.x.deriv(var, (dself * self.keep) / self.keep_prob)
+
+
+class SoftmaxCrossEntropy(op.Op):
+  def __init__(self, z, y):
+    self.z = z
+    self.y = y
+
+    exp = np.e**z
+    a = exp / Sum0(exp)
+
+    self.result = -Sum0(y * Log(a))
+    self.shape = self.result.shape
+    self.dself_dz = a - y
+
+  def _eval(self, feeds, cache):
+    return self.result.eval(feeds, cache)
+
+  def _deriv(self, var, dself):
+    return self.z.deriv(var, dself * self.dself_dz)
+
+  def variables(self):
+    return self.result.variables()

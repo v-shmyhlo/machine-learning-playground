@@ -163,16 +163,16 @@ def log(x):
 
 
 def softmax_cross_entropy(logits, labels):
-  z, y = _to_op(logits), _to_op(labels)
-  return cross_entropy(s=softmax(z), y=y)
+  logits, labels = _to_op(logits), _to_op(labels)
+  return ops.SoftmaxCrossEntropy(z=logits, y=labels)
 
 
+@_to_op2
 def cross_entropy(s, y):
-  s, y = _to_op(s), _to_op(y)
   return -sum0(y * log(s))
 
 
+@_to_op1
 def softmax(x):
-  x = _to_op(x)
   exp = np.e**x
   return exp / sum0(exp)
