@@ -176,3 +176,15 @@ def cross_entropy(s, y):
 def softmax(x):
   exp = np.e**x
   return exp / sum0(exp)
+
+
+def mean1(x):
+  return ops.Mean1(x)
+
+
+def batch_norm(z, gamma, beta, eps=1e-8):
+  mn = mean1(z)
+  z = z - mn
+  var = mean1(z**2)
+  z_norm = z / sqrt(var + eps)
+  return gamma * z_norm + beta

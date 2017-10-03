@@ -288,7 +288,6 @@ class Group(op.Op):
 class Sum0(op.UnaryOp):
   def __init__(self, x):
     x.shape.assert_has_rank(2)
-
     self.x = x
     self.shape = op.make_shape((1, self.x.shape[1]))
     self.dself_dx = Ones(self.x.shape)
@@ -300,13 +299,31 @@ class Sum0(op.UnaryOp):
     return self.x.deriv(var, dself * self.dself_dx)
 
 
+class Mean1(op.UnaryOp):
+  def __init__(self, x):
+    x.shape.assert_has_rank(2)
+    self.x = x
+    self.shape = op.make_shape((self.x.shape[0], 1))
+    self.dself_dx = Ones(self.x.shape) / self.x.shape[1]
+
+  def _eval(self, feeds, cache):
+    return np.mean(self.x.eval(feeds, cache), axis=1, keepdims=True)
+
+  def _deriv(self, var, dself):
+    return self.x.deriv(var, dself * self.dself_dx)
+
+
 class Sqrt(op.UnaryOp):
   def __init__(self, x):
     self.x = x
     self.shape = self.x.shape
+    self.deriv_target = self.x**0.5
 
   def _eval(self, feeds, cache):
     return np.sqrt(self.x.eval(feeds, cache))
+
+  def _deriv(self, var, dself):
+    return self.deriv_target.deriv(var, dself)
 
 
 class Sigmoid(op.UnaryOp):
