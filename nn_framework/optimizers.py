@@ -59,7 +59,8 @@ def adam_update(v, dv, learning_rate, global_step, beta1, beta2, eps):
   avg_corr = avg / (1 - beta1**t)
   s_corr = s / (1 - beta2**t)
 
-  upd_value = avg_corr / ops.Sqrt(s_corr + eps)
+  # upd_value = avg_corr / ops.Sqrt(s_corr + eps)
+  upd_value = avg_corr / (ops.Sqrt(s_corr) + eps)
   upd = v.assign(v - learning_rate * upd_value)
   return ops.Group((avg_upd, s_upd, upd))
 
