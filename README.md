@@ -8,7 +8,7 @@ My implementation of different machine learning algorithms and architectures for
 * [Simple Autoencoder](autoencoder_concept.ipynb)
 * [MNIST GAN (Generative Adversarial Network) (work in progress)](gan.ipynb)
 * [LSTM (Long Short Term Memory) Cell (work in progress)](lstm.ipynb)
-* [3-layer RNN (LSTM) Network (work in progress)](lstm.ipynb)
+* [3-layer RNN (LSTM) Network (text generation) (work in progress)](lstm.ipynb)
 * [Word Embedding with Word2Vec](rnn.ipynb)
 * [Automatic Symbolic Differentiation](automatic_symbolic_differentiation.ipynb)
 * [Neural Network Framework (work in progress)](neural_network_framework.ipynb)
