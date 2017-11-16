@@ -4,6 +4,7 @@ My implementation of different machine learning algorithms and architectures for
 
 * [MNIST Linear Model](mnist_linear.ipynb)
 * [MNIST Convoluational Neural Network](mnist_conv.ipynb)
+* [Neural Style Transfer with VGG-16](neural_style_transfer.ipynb)
 * [Simple Gradient Descent](gradient_descent.ipynb)
 * [Simple Autoencoder](autoencoder_concept.ipynb)
 * [MNIST GAN (Generative Adversarial Network) (work in progress)](gan.ipynb)
