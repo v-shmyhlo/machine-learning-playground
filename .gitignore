@@ -3,5 +3,5 @@
 /.ipynb_checkpoints
 /data
 /model
-/log
+/tf_log
 /output

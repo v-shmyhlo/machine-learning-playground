@@ -1,13 +1,15 @@
 # Machine Learning Playground
 
-My implementation of different machine learning algorithms and architectures for self-education purposes
+My implementation of different machine learning algorithms and architectures for
+self-education purposes
 
 * [MNIST Linear Model](mnist_linear.ipynb)
 * [MNIST Convoluational Neural Network](mnist_conv.ipynb)
-* [Neural Style Transfer with VGG-16](neural_style_transfer.ipynb)
+* [Neural Style Transfer with VGG-16 (work in progress)](neural_style_transfer.ipynb)
 * [Simple Gradient Descent](gradient_descent.ipynb)
 * [Simple Autoencoder](autoencoder_concept.ipynb)
 * [MNIST GAN (Generative Adversarial Network) (work in progress)](gan.ipynb)
+* [MNIST Convolutional GAN (work in progress)](gan_conv.ipynb)
 * [LSTM (Long Short Term Memory) Cell (work in progress)](lstm.ipynb)
 * [3-layer RNN (LSTM) Network (text generation) (work in progress)](rnn.ipynb)
 * [Word Embedding with Word2Vec](word_embedding.ipynb)
