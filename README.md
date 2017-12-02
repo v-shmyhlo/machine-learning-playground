@@ -11,6 +11,7 @@ self-education purposes
 * [MNIST GAN (Generative Adversarial Network) (work in progress)](gan.ipynb)
 * [MNIST Convolutional GAN (work in progress)](gan_conv.ipynb)
 * [LSTM (Long Short Term Memory) Cell (work in progress)](lstm.ipynb)
+* [GRU (Gated Recurrent Unit) Cell (work in progress)](gru.ipynb)
 * [3-layer RNN (LSTM) Network (text generation) (work in progress)](rnn.ipynb)
 * [Word Embedding with Word2Vec](word_embedding.ipynb)
 * [Automatic Symbolic Differentiation](automatic_symbolic_differentiation.ipynb)
