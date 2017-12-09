@@ -13,6 +13,7 @@ self-education purposes
 * [LSTM (Long Short Term Memory) Cell (work in progress)](lstm.ipynb)
 * [GRU (Gated Recurrent Unit) Cell (work in progress)](gru.ipynb)
 * [3-layer RNN (LSTM) Network (text generation) (work in progress)](rnn.ipynb)
+* [Dynamic RNN Loop (TensorFlow) (work in progress)](dynamic_rnn_loop.ipynb)
 * [Encoder-Decoder Seq2Seq Model (work in progress)](pyformat_rnn.ipynb)
 * [Word Embedding with Word2Vec](word_embedding.ipynb)
 * [Automatic Symbolic Differentiation](automatic_symbolic_differentiation.ipynb)
