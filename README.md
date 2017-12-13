@@ -15,7 +15,7 @@ self-education purposes
 * [3-layer RNN (LSTM) Network (text generation) (work in progress)](rnn.ipynb)
 * [Dynamic RNN Loop (TensorFlow)](dynamic_rnn_loop.ipynb)
 * [Encoder-Decoder Seq2Seq Model (work in progress)](pyformat_rnn.ipynb)
-* [Encoder-Decoder Seq2Seq Attention Model (work in progress)](pyformat_rnn_attention.ipynb)
+* [Encoder-Decoder Seq2Seq Attention Model](pyformat_rnn_attention.ipynb)
 * [Word Embedding with Word2Vec](word_embedding.ipynb)
 * [Automatic Symbolic Differentiation](automatic_symbolic_differentiation.ipynb)
 * [Neural Network Framework (work in progress)](neural_network_framework.ipynb)
