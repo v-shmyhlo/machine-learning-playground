@@ -16,6 +16,7 @@ self-education purposes
 * [Dynamic RNN Loop (TensorFlow)](dynamic_rnn_loop.ipynb)
 * [Encoder-Decoder Seq2Seq Model (work in progress)](pyformat_rnn.ipynb)
 * [Encoder-Decoder Seq2Seq Attention Model](pyformat_rnn_attention.ipynb)
+* [Seq2Seq Convolutional Model (PyTorch)](pytorch_seq2seq_conv.ipynb)
 * [Word Embedding with Word2Vec](word_embedding.ipynb)
 * [Automatic Symbolic Differentiation](automatic_symbolic_differentiation.ipynb)
 * [Neural Network Framework (work in progress)](neural_network_framework.ipynb)
