@@ -109,7 +109,7 @@ def gen():
     # target = [sym2id['<start>']] + encode(target) + [sym2id['<end>']]
 
     source = encode(source)
-    target = encode(target) + [eos]
+    target = encode(target)
     yield source, target
 
 
