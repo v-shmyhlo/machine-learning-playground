@@ -105,8 +105,6 @@ def decode(ids):
 def gen():
   while True:
     source, target = sample()
-    # source = [sym2id['<start>']] + encode(source) + [sym2id['<end>']]
-    # target = [sym2id['<start>']] + encode(target) + [sym2id['<end>']]
 
     source = encode(source)
     target = encode(target)
