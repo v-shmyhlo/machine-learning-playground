@@ -5,7 +5,7 @@ self-education purposes
 
 * [MNIST Linear Model](mnist_linear.ipynb)
 * [MNIST Convoluational Neural Network](mnist_conv.ipynb)
-* [Neural Style Transfer with VGG-16 (work in progress)](neural_style_transfer.ipynb)
+* [Neural Style Transfer (VGG-16, TensorFlow) (work in progress)](neural_style_transfer_tf.ipynb)
 * [Neural Style Transfer (VGG19, PyTorch)](neural_style_transfer_pytorch.ipynb)
 * [Simple Gradient Descent](gradient_descent.ipynb)
 * [Simple Autoencoder](autoencoder_concept.ipynb)
