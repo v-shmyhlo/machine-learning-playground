@@ -6,9 +6,10 @@ faker = Faker('en_US')
 
 special_symbols = {
     '<p>': 0,
-    '</s>': 1,
-    '<f>': 2,
-    '<n>': 3,
+    '<s>': 1,
+    '</s>': 2,
+    '<f>': 3,
+    '<n>': 4,
 }
 
 vocab = string.ascii_letters + '0123456789 %-:{}'
@@ -18,6 +19,8 @@ sym2id = {**special_symbols, **sym2id}
 id2sym = {sym2id[sym]: sym for sym in sym2id}
 
 pad = sym2id['<p>']
+sos = sym2id['<s>']
+eos = sym2id['</s>']
 
 vocab_size = len(vocab) + len(special_symbols)
 assert vocab_size == len(sym2id) and vocab_size == len(id2sym)
